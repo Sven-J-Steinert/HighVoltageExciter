@@ -13,7 +13,7 @@
 #define LEDC_CHANNEL_0     0
 #define LED_PIN            11
 
-long cycle_periods = 30000;
+long cycle_periods = 40000;
 
 float calc_frequency(){
   float f = (1/(25*pow(10,-9)*(cycle_periods)));
@@ -54,15 +54,14 @@ int switchBitResolution(void){
   else if (frequency >    9765.625) { bit_res = 11; }
   else if (frequency >    4882.8125) { bit_res = 12; }
   else if (frequency >    2441.40625) { bit_res = 13; }
-  else if (frequency >    1220.703125) { bit_res = 14; } // highest bitrate for LEDC_USE_APB_CLK
-  
-  else if (frequency >     610.3515625) { bit_res = 0; }
-  else if (frequency >       0) { bit_res = 16; }
+  else if (frequency >    1220.703125) { bit_res = 14; } 
+  else { bit_res = 14; } // highest bitrate
 
   return bit_res;
 }
 
 int LEDC_TIMER_BIT = switchBitResolution();
+int LEDC_TIMER_BIT_old = LEDC_TIMER_BIT;
 float duty_percent = 50;
 long duty_periods = int((duty_percent/100)*(pow(2,LEDC_TIMER_BIT)-1));
 long duty_periods_old = 0;
@@ -87,7 +86,7 @@ void drawFrame(void)
   u8g2.setFont(u8g2_font_6x10_tf);
   u8g2.drawStr(18,48,"CYCLE");
   u8g2.drawStr(85,48,"DUTY");
-  u8g2.drawFrame(0, 0, 127, 38); // Top Box
+  u8g2.drawFrame(0, 0, 128, 38); // Top Box
   u8g2.drawHLine(0, 44, 16);
   u8g2.drawHLine(48, 44, 35);
   u8g2.drawHLine(110, 44, 17);
@@ -146,7 +145,7 @@ void refreshDisplayValues(void)
 
   drawValue(70,48,LEDC_TIMER_BIT);
 
-  drawValue(56,61,cycle_periods);
+  drawValue(42,61,cycle_periods);
   
   drawValue(85,61,duty_percent);
   u8g2.drawStr(88,61,"%");
@@ -157,7 +156,7 @@ void refreshDisplayValues(void)
   u8g2.updateDisplayArea(7, 5, 2, 2); // bit
   //u8g2.updateDisplayArea(1, 6, 6, 2); // cycle_periods
   //u8g2.updateDisplayArea(9, 6, 7, 2); // duty_percent
-  u8g2.updateDisplayArea(1, 6, 15, 2); // bottom
+  u8g2.updateDisplayArea(0, 6, 16, 2); // bottom
   //u8g2.updateDisplay();
 
 
@@ -169,7 +168,7 @@ void setup(void) {
 
   u8g2.begin();
   u8g2.setBusClock(2000000);
-  
+
   // draw borders
   u8g2.clearBuffer();
   drawFrame();
@@ -180,30 +179,20 @@ void loop(void) {
   frequency = calc_frequency();
   LEDC_TIMER_BIT = switchBitResolution();
 
-  if (frequency < 1220.703125){
-    const int freq = 5000;
-    const int ledChannel = 1;
-    const int resolution = 8;
-    ledcSetup(ledChannel, freq, resolution);
-    ledcAttachPin(12, ledChannel);
-    ledcWrite(ledChannel, 125);
-  }
-
-  else {
-    ledcChangeFrequency(LEDC_CHANNEL_0, frequency,LEDC_TIMER_BIT);
-  }
-  
-  
   if (duty_periods > (pow(2,LEDC_TIMER_BIT))){
     duty_periods = (pow(2,LEDC_TIMER_BIT));
   }
   duty_percent = 100*(duty_periods/(pow(2,LEDC_TIMER_BIT)));
   
-  ledcAnalogWrite(LEDC_CHANNEL_0, duty_periods,LEDC_TIMER_BIT);
+
+  //ledcChangeFrequency(LEDC_CHANNEL_0, frequency,LEDC_TIMER_BIT);
+  ledcSetup(LEDC_CHANNEL_0, frequency, LEDC_TIMER_BIT);
+  ledcAttachPin(LED_PIN, LEDC_CHANNEL_0);
+  ledcWrite(LEDC_CHANNEL_0, 7500);
   
   refreshDisplayValues();
 
-  cycle_periods+=100;
+  //cycle_periods=int(cycle_periods*0.95)+1;
   //duty_periods+= int(0.1*(pow(2,LEDC_TIMER_BIT)));
   //delay(1000);
   //duty_periods=3;
